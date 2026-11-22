@@ -17,6 +17,13 @@ export function makeHold(CW, CH) {
   return { canvas: c, ctx: c.getContext('2d'), valid: false, freeze: false, frame: -1, tile: '' };
 }
 
+// a clip at rest shows the empty place from an image (the last frame of its
+// track) instead of a paused video: Safari keeps presenting a stale picture
+// after a paused video has been moved to another time
+export function drawRest(ctx, img, tile, x, y, CW, CH) {
+  ctx.drawImage(img, tile[0], tile[1], CW, CH, x, y, CW, CH);
+}
+
 export function drawTile(ctx, video, hold, tile, x, y, CW, CH) {
   if (!hold.freeze && video.readyState >= 2 && !video.seeking) {
     const frame = Math.floor(video.currentTime * FPS + 1e-3);

@@ -86,7 +86,16 @@ def entry(name, src, cols, out_dir, rel):
     track_tiles = {str(i + 1): tiles[k] for k, i in enumerate(vids)}
     print(f"{name:10s} {len(vids):2d} video tracks -> {mw}x{mh}, {movie_duration(src):.3f}s, "
           f"{os.path.getsize(os.path.join(out_dir, name + '.mp4')) / 1e6:.1f} MB")
-    return {"video": f"{rel}/{name}.mp4", "tiles": track_tiles, "duration": round(movie_duration(src), 4)}
+    # the last frame of every track, same tile layout: what a clip shows once a
+    # character has left it (drawn as an image — no seek, which Safari renders late)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-sseof", "-0.1", "-i", os.path.join(out_dir, f"{name}.mp4"),
+                    "-frames:v", "1", "-update", "1", "-q:v", "3", os.path.join(out_dir, f"{name}_end.jpg")], check=True)
+    # ...and the first frame: what a rewound clip shows (parität rests on frame 0, as in the original)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(out_dir, f"{name}.mp4"),
+                    "-frames:v", "1", "-q:v", "3", os.path.join(out_dir, f"{name}_start.jpg")], check=True)
+    return {"video": f"{rel}/{name}.mp4", "start": f"{rel}/{name}_start.jpg", "end": f"{rel}/{name}_end.jpg",
+            "tiles": track_tiles,
+            "duration": round(movie_duration(src), 4)}
 
 
 def main(root):

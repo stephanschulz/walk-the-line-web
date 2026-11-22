@@ -16,7 +16,7 @@
 // rider would appear in it, and each knight's departure is timed so that both
 // arrive in the meeting clip when the meeting footage expects them.
 
-import { makeHold, drawTile } from './videoclip.js';
+import { makeHold, drawTile, drawRest } from './videoclip.js';
 
 const TICK = 1 / 60;
 const NAMES = ['weiss', 'tausch', 'hand', 'kampf', 'rot'];
@@ -71,12 +71,13 @@ export function ritterScene(cfg) {
     if (s.audioOn && s.buffer) s.src = env.play(s.buffer, { offset: Math.max(0, sec), rate });
   }
   // The Lingo rewinds a clip as soon as a knight has ridden out of it, which
-  // brings him back on screen (frame 0).  Here such a clip is "parked" on its
-  // last frame — the empty place; a new round (keep = false) rewinds for real.
+  // brings him back on screen (frame 0).  Here a stopped clip shows the empty
+  // place instead (see draw); "parked" = stopped mid-round, which the logic
+  // treats as rewound.  A new round (keep = false) rewinds for real.
   function stop(n, keep = true) {
     const s = S[n];
     s.v.pause();
-    if (keep && s.playing) { s.parked = true; s.v.currentTime = Math.max(0, s.movie.duration - 0.05); }
+    if (keep && s.playing) s.parked = true;
     else { s.parked = false; s.v.currentTime = 0; }
     s.playing = false;
     if (s.src) { s.src.stop(); s.src = null; }
@@ -191,7 +192,9 @@ export function ritterScene(cfg) {
   function draw(ctx) {
     for (let n = 1; n <= 5; n++) {
       const s = S[n];
-      drawTile(ctx, s.v, s.hold, s.movie.tiles[String(s.track)], left(n), 0, CW, CH);
+      const tile = s.movie.tiles[String(s.track)];
+      if (!s.playing && s.endImg) drawRest(ctx, s.endImg, tile, left(n), 0, CW, CH);   // the empty place
+      else drawTile(ctx, s.v, s.hold, tile, left(n), 0, CW, CH);
     }
     if (env.debug) {
       ctx.font = '7px monospace';
@@ -220,6 +223,7 @@ export function ritterScene(cfg) {
         if (!movie.tiles[String(s.track)]) s.track = Number(Object.keys(movie.tiles)[0]);
         S[k + 1] = s;
         jobs.push(env.createVideo(movie.video).then(v => { s.v = v; }));
+        jobs.push(env.loadImage(movie.end).then(img => { s.endImg = img; }));
         if (movie.audio) jobs.push(env.loadAudio(movie.audio).then(b => { s.buffer = b; }));
       });
       jobs.push(env.loadAudio(data.ambience.audio).then(b => { cashBuffer = b; }));

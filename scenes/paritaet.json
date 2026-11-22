@@ -4,6 +4,8 @@
  "clipHeight": 150,
  "movie": {
   "video": "media/paritaet/rund.mp4",
+  "start": "media/paritaet/rund_start.jpg",
+  "end": "media/paritaet/rund_end.jpg",
   "tiles": {
    "1": [
     0,
