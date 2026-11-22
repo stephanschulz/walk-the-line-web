@@ -7,7 +7,7 @@
 // This is a straight port of pari360.dir.  Times are Director ticks (1/60 s);
 // the tables say, per track, when the person appears ("in") and leaves ("out").
 
-import { makeHold, drawTile, drawRest } from './videoclip.js';
+import { domRow, domClip } from './videoclip.js';
 
 const TICK = 1 / 60;
 // eintritt / austritt per track 1..20 (index 0 unused)
@@ -21,7 +21,7 @@ const pairOf = t => wrapTrack(t % 2 === 0 ? t - 1 : t + 1);   // same camera, ot
 const dirOf = t => ((t > 14 || t < 5) ? (t % 2 === 0 ? 1 : -1) : (t % 2 === 0 ? -1 : 1));
 
 export function paritaetScene(cfg) {
-  let env, CW, CH, movie, duration, endImg;
+  let env, CW, CH, movie, duration, restImg, row;
   const clips = [];          // { v, T, playing }
   let richtung = 1;          // direction the chain travels
   let autoWait = 0;
@@ -86,12 +86,9 @@ export function paritaetScene(cfg) {
   // ------------------------------------------------------------ drawing / input
   function draw(ctx) {
     // the last good frame is drawn while a seek is in flight (no flicker at a clip's start)
-    // a clip at rest shows its first frame from an image, not from a paused, rewound video
-    clips.forEach((c, i) => {
-      const tile = movie.tiles[String(c.T)];
-      if (!c.playing && endImg) drawRest(ctx, endImg, tile, left(i), 0, CW, CH);
-      else drawTile(ctx, c.v, c.hold, tile, left(i), 0, CW, CH);
-    });
+    // the clips are real videos (js/videoclip.js); a resting clip shows its first frame as an image
+    row.sync(env.view);
+    clips.forEach(c => c.dom.set(movie.tiles[String(c.T)], !c.playing));
     if (env.debug) {
       ctx.font = '7px monospace';
       clips.forEach((c, i) => {
@@ -112,11 +109,12 @@ export function paritaetScene(cfg) {
       const data = await env.loadJSON(cfg.url);
       movie = data.movie;
       duration = movie.duration;
-      endImg = await env.loadImage(movie.start);      // rewound clips rest on frame 0 (as in the original)
+      restImg = await env.loadImage(movie.start);     // rewound clips rest on frame 0 (as in the original)
       let done = 0;
       const vids = await Promise.all(Array.from({ length: N }, () =>
         env.createVideo(movie.video).then(v => { progress(++done, N); return v; })));
-      vids.forEach(v => clips.push({ v, T: 20, playing: false, hold: makeHold(CW, CH) }));
+      row = domRow(N, cfg.rowLeft, CW, CH);
+      vids.forEach((v, i) => clips.push({ v, T: 20, playing: false, dom: domClip(row.cells[i], v, restImg) }));
     },
     reset() {
       clips.forEach((c, i) => { stop(i); c.T = 20; });
@@ -136,7 +134,7 @@ export function paritaetScene(cfg) {
     pointermove(p) { const i = clipAt(p); env.setCursor(i >= 0 && i < N ? 'click' : null); },
     pointerup() {},
     suspend(on) { clips.forEach(c => { if (c.playing) on ? c.v.pause() : c.v.play().catch(() => {}); }); },
-    destroy() { api.running = false; clips.forEach(c => { c.v.pause(); c.v.remove(); }); },
+    destroy() { api.running = false; clips.forEach(c => { c.v.pause(); c.v.remove(); }); if (row) row.remove(); },
     testAPI() {
       return {
         get clips() { return clips.map((c, i) => ({ T: c.T, dir: dirOf(c.T), t: +ticks(i).toFixed(0), playing: c.playing })); },

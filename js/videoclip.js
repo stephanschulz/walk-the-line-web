@@ -1,39 +1,74 @@
-// Drawing one tile of a mosaic <video> without flicker, and cheaply.
+// The multi-track scenes (parität, ritter) show their mosaic videos as real,
+// visible <video> elements, each cropped by CSS to the tile of its current
+// track — not copied onto the canvas.  Safari only decodes and paints a video
+// reliably while it is actually on screen; copying frames from hidden videos
+// froze there after a few frames.  Switching the track only moves the crop,
+// so it stays instant.
 //
-// After `currentTime` is set, a video keeps presenting its previous frame (or
-// nothing) until the seek has landed, so drawing straight from it flashes the
-// old picture.  Every clip therefore keeps its own copy of the last good frame
-// and draws that.  The copy is refreshed only when there is something new — a
-// new video frame (the movies run at 15 fps) or another tile (perspective /
-// time of day) — and never while a seek is in flight.  Copying from a video is
-// expensive in Safari, so doing it 15 instead of 60-120 times a second matters.
-// `freeze` keeps the copy unchanged on purpose.
+// Every clip also has a still image (the first or last frame of all tracks,
+// same mosaic layout) on top of the video.  It shows while the clip rests, and
+// while its video is still seeking — so a stale picture never shows.
 
-const FPS = 15;
-
-export function makeHold(CW, CH) {
-  const c = document.createElement('canvas');
-  c.width = CW; c.height = CH;
-  return { canvas: c, ctx: c.getContext('2d'), valid: false, freeze: false, frame: -1, tile: '' };
-}
-
-// a clip at rest shows the empty place from an image (the last frame of its
-// track) instead of a paused video: Safari keeps presenting a stale picture
-// after a paused video has been moved to another time
-export function drawRest(ctx, img, tile, x, y, CW, CH) {
-  ctx.drawImage(img, tile[0], tile[1], CW, CH, x, y, CW, CH);
-}
-
-export function drawTile(ctx, video, hold, tile, x, y, CW, CH) {
-  if (!hold.freeze && video.readyState >= 2 && !video.seeking) {
-    const frame = Math.floor(video.currentTime * FPS + 1e-3);
-    const key = tile.join(',');
-    if (frame !== hold.frame || key !== hold.tile || !hold.valid) {
-      hold.ctx.drawImage(video, tile[0], tile[1], CW, CH, 0, 0, CW, CH);
-      hold.valid = true;
-      hold.frame = frame;
-      hold.tile = key;
-    }
+// one row of clips on the 1024 px stage, positioned like the canvas stage
+export function domRow(count, rowLeft, CW, CH) {
+  const root = document.createElement('div');
+  root.className = 'dom-row';
+  const cells = [];
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('div');
+    d.className = 'dom-clip';
+    d.style.left = `${rowLeft + i * CW}px`;
+    d.style.width = `${CW}px`;
+    d.style.height = `${CH}px`;
+    root.append(d);
+    cells.push(d);
   }
-  if (hold.valid) ctx.drawImage(hold.canvas, x, y, CW, CH);
+  document.body.append(root);
+  let last = '';
+  return {
+    cells,
+    // follow the canvas stage (resize, zoom)
+    sync(view) {
+      const t = `translate(${view.x0}px, ${view.y0}px) scale(${view.scale})`;
+      if (t !== last) { root.style.transform = t; last = t; }
+    },
+    remove() { root.remove(); },
+  };
+}
+
+// a video + its rest image inside one cell
+export function domClip(cell, video, restImg) {
+  const img = restImg.cloneNode();
+  for (const el of [video, img]) {
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.maxWidth = 'none';
+  }
+  video.style.width = `${video.videoWidth}px`;
+  video.style.height = `${video.videoHeight}px`;
+  img.style.width = `${restImg.naturalWidth}px`;
+  img.style.height = `${restImg.naturalHeight}px`;
+  cell.append(video, img);
+  let tileKey = '', resting = null, waking = true;
+  return {
+    // show `tile` ([x, y] in the mosaic); `rest` = show the still image
+    set(tile, rest) {
+      const key = tile.join(',');
+      if (key !== tileKey) {
+        const tr = `translate(${-tile[0]}px, ${-tile[1]}px)`;
+        video.style.transform = tr;
+        img.style.transform = tr;
+        tileKey = key;
+      }
+      // a clip starting from rest keeps its image until the seek to its start
+      // time has landed; a jump within a playing clip (ritter's waiting loop)
+      // keeps showing the video, so nothing flashes there
+      const ready = !video.seeking && video.readyState >= 2;
+      if (rest) waking = true;
+      else if (ready) waking = false;
+      const r = rest || waking;
+      if (r !== resting) { img.style.visibility = r ? 'visible' : 'hidden'; resting = r; }
+    },
+  };
 }

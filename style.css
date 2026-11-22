@@ -119,3 +119,17 @@ html, body {
   pointer-events: none;
 }
 #videos video { position: absolute; left: 0; top: 0; width: 200px; height: auto; }
+
+/* parität / ritter: the clips are real videos, cropped to one mosaic tile each
+   and laid out on the same 1024 px stage as the canvas (see js/videoclip.js) */
+.dom-row {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1024px;
+  height: 150px;
+  transform-origin: 0 0;
+  pointer-events: none;      /* clicks go to the canvas underneath */
+  z-index: 1;
+}
+.dom-clip { position: absolute; top: 0; overflow: hidden; background: #000; }

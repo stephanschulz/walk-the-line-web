@@ -16,7 +16,7 @@
 // rider would appear in it, and each knight's departure is timed so that both
 // arrive in the meeting clip when the meeting footage expects them.
 
-import { makeHold, drawTile, drawRest } from './videoclip.js';
+import { domRow, domClip } from './videoclip.js';
 
 const TICK = 1 / 60;
 const NAMES = ['weiss', 'tausch', 'hand', 'kampf', 'rot'];
@@ -31,7 +31,7 @@ const ROUTES = {
 const SIDE = { w: { in: 'L', out: 'R' }, r: { in: 'R', out: 'L' } };
 
 export function ritterScene(cfg) {
-  let env, CW, CH, data;
+  let env, CW, CH, data, row;
   const S = [];               // S[1..5]: { v, movie, track, playing, parked, rate, audioOn, src, parkAt }
   let cash = null, cashBuffer = null;
   let wer, wahl;              // Lingo: meeting place, "already chosen"
@@ -190,12 +190,9 @@ export function ritterScene(cfg) {
 
   // ------------------------------------------------------------ drawing / input
   function draw(ctx) {
-    for (let n = 1; n <= 5; n++) {
-      const s = S[n];
-      const tile = s.movie.tiles[String(s.track)];
-      if (!s.playing && s.endImg) drawRest(ctx, s.endImg, tile, left(n), 0, CW, CH);   // the empty place
-      else drawTile(ctx, s.v, s.hold, tile, left(n), 0, CW, CH);
-    }
+    // the clips are real videos (js/videoclip.js); a clip that isn't playing shows the empty place
+    row.sync(env.view);
+    for (let n = 1; n <= 5; n++) S[n].dom.set(S[n].movie.tiles[String(S[n].track)], !S[n].playing);
     if (env.debug) {
       ctx.font = '7px monospace';
       for (let n = 1; n <= 5; n++) {
@@ -218,8 +215,7 @@ export function ritterScene(cfg) {
       const jobs = [];
       NAMES.forEach((name, k) => {
         const movie = data.movies[name];
-        const s = { movie, track: movie.tiles['1'] ? 1 : 2, playing: false, parked: false, rate: 1, audioOn: false, src: null, parkAt: Infinity,
-          hold: makeHold(CW, CH) };
+        const s = { movie, track: movie.tiles['1'] ? 1 : 2, playing: false, parked: false, rate: 1, audioOn: false, src: null, parkAt: Infinity };
         if (!movie.tiles[String(s.track)]) s.track = Number(Object.keys(movie.tiles)[0]);
         S[k + 1] = s;
         jobs.push(env.createVideo(movie.video).then(v => { s.v = v; }));
@@ -230,6 +226,8 @@ export function ritterScene(cfg) {
       let done = 0;
       jobs.forEach(j => j.then(() => progress(++done, jobs.length)));
       await Promise.all(jobs);
+      row = domRow(5, cfg.rowLeft, CW, CH);
+      for (let n = 1; n <= 5; n++) S[n].dom = domClip(row.cells[n - 1], S[n].v, S[n].endImg);
     },
     start() {
       cash = env.play(cashBuffer, { loop: true });
@@ -253,6 +251,7 @@ export function ritterScene(cfg) {
       api.running = false;
       if (cash) cash.stop();
       for (let n = 1; n <= 5; n++) if (S[n]) { if (S[n].src) S[n].src.stop(); if (S[n].v) { S[n].v.pause(); S[n].v.remove(); } }
+      if (row) row.remove();
     },
     testAPI() {
       return {
