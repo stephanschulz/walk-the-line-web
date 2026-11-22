@@ -133,3 +133,13 @@ html, body {
   z-index: 1;
 }
 .dom-clip { position: absolute; top: 0; overflow: hidden; background: #000; }
+.dom-debug {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 158px;
+  margin: 0;
+  font: 7px/1.35 Menlo, monospace;
+  color: #ff0;
+  white-space: pre;
+}

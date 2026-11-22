@@ -32,7 +32,7 @@ export function paritaetScene(cfg) {
   function start(i, ticks) {
     const c = clips[i];
     c.v.currentTime = ticks * TICK;
-    c.v.play().catch(() => {});
+    c.v.play().catch(e => console.warn('video play refused:', e.name, e.message));
     c.playing = true;
   }
   function stop(i) {
@@ -89,6 +89,8 @@ export function paritaetScene(cfg) {
     // the clips are real videos (js/videoclip.js); a resting clip shows its first frame as an image
     row.sync(env.view);
     clips.forEach(c => c.dom.set(movie.tiles[String(c.T)], !c.playing));
+    row.debug(env.debug ? clips.map((c, i) => c.dom.status(`${i + 1} T${c.T}${c.playing ? ' ▶' : ''}`, c.playing))
+      .concat([`richtung ${richtung}  ${navigator.userAgent}`]) : null);
     if (env.debug) {
       ctx.font = '7px monospace';
       clips.forEach((c, i) => {
@@ -133,7 +135,7 @@ export function paritaetScene(cfg) {
     },
     pointermove(p) { const i = clipAt(p); env.setCursor(i >= 0 && i < N ? 'click' : null); },
     pointerup() {},
-    suspend(on) { clips.forEach(c => { if (c.playing) on ? c.v.pause() : c.v.play().catch(() => {}); }); },
+    suspend(on) { clips.forEach(c => { if (c.playing) on ? c.v.pause() : c.v.play().catch(e => console.warn('video play refused:', e.name, e.message)); }); },
     destroy() { api.running = false; clips.forEach(c => { c.v.pause(); c.v.remove(); }); if (row) row.remove(); },
     testAPI() {
       return {

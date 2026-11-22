@@ -88,7 +88,10 @@ export const env = {
   // a muted video element kept in the (invisible) DOM so it keeps decoding
   createVideo(url) {
     const v = document.createElement('video');
-    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+    // muted + playsinline as attributes too: Safari's autoplay rules look at them
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('disableremoteplayback', '');
+    v.src = url;
     $('videos').append(v);
     return new Promise((res, rej) => {
       if (v.readyState >= 3) return res(v);

@@ -66,7 +66,7 @@ export function ritterScene(cfg) {
     s.v.playbackRate = rate;
     s.playing = true;
     s.parkAt = Infinity;
-    s.v.play().catch(() => {});
+    s.v.play().catch(e => console.warn('video play refused:', e.name, e.message));
     if (s.src) { s.src.stop(); s.src = null; }
     if (s.audioOn && s.buffer) s.src = env.play(s.buffer, { offset: Math.max(0, sec), rate });
   }
@@ -193,6 +193,8 @@ export function ritterScene(cfg) {
     // the clips are real videos (js/videoclip.js); a clip that isn't playing shows the empty place
     row.sync(env.view);
     for (let n = 1; n <= 5; n++) S[n].dom.set(S[n].movie.tiles[String(S[n].track)], !S[n].playing);
+    row.debug(env.debug ? [1, 2, 3, 4, 5].map(n => S[n].dom.status(`${NAMES[n - 1]} tr${S[n].track}${S[n].playing ? ' ▶' : ''}`, S[n].playing))
+      .concat([`wer ${wer}  ${navigator.userAgent}`]) : null);
     if (env.debug) {
       ctx.font = '7px monospace';
       for (let n = 1; n <= 5; n++) {
@@ -246,7 +248,7 @@ export function ritterScene(cfg) {
     },
     pointermove(q) { const n = spriteAt(q); env.setCursor(n >= 2 && n <= 4 ? 'click' : null); },
     pointerup() {},
-    suspend(on) { for (let n = 1; n <= 5; n++) if (S[n].playing) on ? S[n].v.pause() : S[n].v.play().catch(() => {}); },
+    suspend(on) { for (let n = 1; n <= 5; n++) if (S[n].playing) on ? S[n].v.pause() : S[n].v.play().catch(e => console.warn('video play refused:', e.name, e.message)); },
     destroy() {
       api.running = false;
       if (cash) cash.stop();

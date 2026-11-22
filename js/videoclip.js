@@ -23,10 +23,18 @@ export function domRow(count, rowLeft, CW, CH) {
     root.append(d);
     cells.push(d);
   }
+  // diagnostics (key D): the state of every video, as text under the row
+  const info = document.createElement('pre');
+  info.className = 'dom-debug';
+  root.append(info);
   document.body.append(root);
   let last = '';
   return {
     cells,
+    debug(lines) {
+      info.style.display = lines ? 'block' : 'none';
+      if (lines) info.textContent = lines.join('\n');
+    },
     // follow the canvas stage (resize, zoom)
     sync(view) {
       const t = `translate(${view.x0}px, ${view.y0}px) scale(${view.scale})`;
@@ -51,7 +59,19 @@ export function domClip(cell, video, restImg) {
   img.style.height = `${restImg.naturalHeight}px`;
   cell.append(video, img);
   let tileKey = '', resting = null, waking = true;
+  let lastT = -1, stalls = 0, frames = 0;
   return {
+    // one line of diagnostics: is the video really advancing while it should play?
+    status(label, shouldPlay) {
+      const t = video.currentTime;
+      if (shouldPlay && !video.paused) { if (t === lastT) stalls++; frames++; }
+      lastT = t;
+      const buf = video.buffered.length ? video.buffered.end(video.buffered.length - 1).toFixed(1) : '0';
+      return `${label.padEnd(16)} t ${t.toFixed(2).padStart(5)}  ${video.paused ? 'paused ' : 'playing'}` +
+        `  ready ${video.readyState}  net ${video.networkState}${video.seeking ? '  SEEKING' : ''}` +
+        `  rate ${video.playbackRate}  buf ${buf}/${video.duration.toFixed(1)}` +
+        `  stalled ${stalls}/${frames}${resting ? '  [image]' : ''}${video.error ? '  ERROR ' + video.error.code : ''}`;
+    },
     // show `tile` ([x, y] in the mosaic); `rest` = show the still image
     set(tile, rest) {
       const key = tile.join(',');
