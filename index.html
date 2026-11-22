@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>walk the line — Stephan Schulz</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="stage" aria-label="video clips side by side"></canvas>
+
+  <div id="scene-ui" class="hidden">
+    <button id="reset" class="ui" title="Reset the clips (R)">reset</button>
+    <a id="to-menu" class="ui" href="#" title="Back to the menu (Esc)">menu</a>
+    <p id="info" class="ui"></p>
+  </div>
+
+  <nav id="menu" class="hidden">
+    <h1>walk the line</h1>
+    <p class="sub">Stephan Schulz, 2002</p>
+    <ul>
+      <li><a href="#fussball"><img src="media/menu/fussball.jpg" data-anim="media/menu/fussball.webp" alt=""><span>fussball</span></a></li>
+      <li><a href="#stadt"><img src="media/menu/stadt.jpg" data-anim="media/menu/stadt.webp" alt=""><span>stadt</span></a></li>
+      <li><a href="#ton"><img src="media/menu/ton.jpg" data-anim="media/menu/ton.webp" alt=""><span>ton</span></a></li>
+      <li><a href="#paritaet"><img src="media/menu/paritaet.jpg" data-anim="media/menu/paritaet.webp" alt=""><span>parität</span></a></li>
+      <li><a href="#ritter"><img src="media/menu/ritter.jpg" data-anim="media/menu/ritter.webp" alt=""><span>ritter</span></a></li>
+    </ul>
+  </nav>
+
+  <div id="start" class="hidden">
+    <h1>walk the line</h1>
+    <p class="sub">Stephan Schulz, 2002</p>
+    <p id="status">click to start</p>
+  </div>
+
+  <!-- decoded videos for the multi-track scenes live here: they must stay in the
+       DOM (some browsers stop decoding hidden videos), but are never seen -->
+  <div id="videos" aria-hidden="true"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
