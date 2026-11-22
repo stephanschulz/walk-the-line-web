@@ -92,3 +92,27 @@ export function domClip(cell, video, restImg) {
     },
   };
 }
+
+// Seek a paused video, and press play only once the seek has landed.
+// Safari (WebKit, macOS 26) stalls a paused, fully loaded video that is
+// seeked and played in one go: it decodes about a second, then stops painting
+// while its clock runs on.  Waiting for 'seeked' avoids that (tested with
+// tools/safari_video_test2.html).  The time the seek took is made up by
+// starting a little later in the video, so the timing stays exact.
+// Returns a cancel function (for a clip stopped before its seek landed).
+export function seekThenPlay(video, sec, onPlaying) {
+  let cancelled = false;
+  const asked = performance.now();
+  video.pause();
+  video.currentTime = Math.max(0, sec);
+  const go = () => {
+    if (cancelled) return;
+    const late = (performance.now() - asked) / 1000 * video.playbackRate;
+    if (late > 0.04) video.currentTime = Math.max(0, sec) + late;   // a seek on a playing video is safe
+    video.play().catch(e => console.warn('video play refused:', e.name, e.message));
+    if (onPlaying) onPlaying(late);
+  };
+  if (video.seeking) video.addEventListener('seeked', go, { once: true });
+  else go();
+  return () => { cancelled = true; };
+}

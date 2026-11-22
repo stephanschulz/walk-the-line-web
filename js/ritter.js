@@ -16,7 +16,7 @@
 // rider would appear in it, and each knight's departure is timed so that both
 // arrive in the meeting clip when the meeting footage expects them.
 
-import { domRow, domClip } from './videoclip.js';
+import { domRow, domClip, seekThenPlay } from './videoclip.js';
 
 const TICK = 1 / 60;
 const NAMES = ['weiss', 'tausch', 'hand', 'kampf', 'rot'];
@@ -61,14 +61,16 @@ export function ritterScene(cfg) {
   function startAt(n, sec, rate = 1) {
     const s = S[n];
     s.parked = false;
-    s.v.currentTime = Math.max(0, sec);
     s.rate = rate;
     s.v.playbackRate = rate;
     s.playing = true;
     s.parkAt = Infinity;
-    s.v.play().catch(e => console.warn('video play refused:', e.name, e.message));
     if (s.src) { s.src.stop(); s.src = null; }
-    if (s.audioOn && s.buffer) s.src = env.play(s.buffer, { offset: Math.max(0, sec), rate });
+    if (s.cancel) s.cancel();
+    // the meeting sound starts with the picture, once the seek has landed
+    s.cancel = seekThenPlay(s.v, sec, late => {
+      if (s.audioOn && s.buffer) s.src = env.play(s.buffer, { offset: Math.max(0, sec) + late, rate });
+    });
   }
   // The Lingo rewinds a clip as soon as a knight has ridden out of it, which
   // brings him back on screen (frame 0).  Here a stopped clip shows the empty
@@ -76,6 +78,7 @@ export function ritterScene(cfg) {
   // treats as rewound.  A new round (keep = false) rewinds for real.
   function stop(n, keep = true) {
     const s = S[n];
+    if (s.cancel) { s.cancel(); s.cancel = null; }
     s.v.pause();
     if (keep && s.playing) s.parked = true;
     else { s.parked = false; s.v.currentTime = 0; }

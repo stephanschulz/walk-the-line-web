@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Safari video stall test</title>
+<style>
+  body { background: #222; color: #ccc; font: 12px monospace; margin: 10px; }
+  .row { display: flex; gap: 12px; }
+  .cell { position: relative; width: 200px; height: 150px; overflow: hidden; background: #000; }
+  .cell video { position: absolute; left: 0; top: 0; width: 612px; height: 462px; max-width: none; }
+</style>
+<p>Each video: load, pause + rewind, idle IDLE s, then seek + play like the app. Variants differ in one setting.</p>
+<div class="row" id="row"></div>
+<pre id="out"></pre>
+<script>
+const SRC = '../media/ritter/' + (new URLSearchParams(location.search).get('src') || 'hand') + '.mp4';
+const VARIANTS = {
+  app: {},                                    // as the app does it
+  loop: { loop: true },
+  preloadMeta: { preload: 'metadata' },
+  noIdle: { idle: 0 },
+  playFirst: { playFirst: true },             // play() before setting currentTime
+  noRewind: { noRewind: true },               // no pause+rewind after load
+  immediate: { immediate: true },             // seek+play right away, before the file has loaded
+  seek0: { seekTo: 0 },                       // start exactly at 0
+  waitSeeked: { waitSeeked: true },           // seek, wait for 'seeked', then play
+  keyframe: { seekTo: 1 / 3 },                // a keyframe time (every 5th frame at 15 fps)
+  midKey: { seekTo: 1 / 3 + 0.07 },           // just after a keyframe
+};
+const ONLY = new URLSearchParams(location.search).get('only');
+if (ONLY) for (const k of Object.keys(VARIANTS)) if (k !== ONLY) delete VARIANTS[k];
+const params = new URLSearchParams(location.search);
+const IDLE = Number(params.get('idle') || 8);
+window.stats = {};
+for (const [name, opt] of Object.entries(VARIANTS)) {
+  const cell = document.createElement('div'); cell.className = 'cell';
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+  v.preload = opt.preload || 'auto';
+  if (opt.loop) v.loop = true;
+  v.src = SRC;
+  cell.append(v);
+  const box = document.createElement('div'); box.append(cell, Object.assign(document.createElement('div'), { textContent: name }));
+  document.getElementById('row').append(box);
+  const s = stats[name] = { frames: 0, perSec: [] };
+  const cb = () => { s.frames++; v.requestVideoFrameCallback(cb); };
+  v.requestVideoFrameCallback(cb);
+  if (opt.immediate) { v.currentTime = 0.07; v.play(); s.started = performance.now(); continue; }
+  v.addEventListener('canplaythrough', async () => {
+    if (!opt.noRewind) { v.pause(); v.currentTime = 0; }
+    await new Promise(r => setTimeout(r, (opt.idle ?? IDLE) * 1000));
+    if (opt.playFirst) { v.play(); v.currentTime = 0.07; }
+    else if (opt.waitSeeked) {
+      v.currentTime = 0.07;
+      await new Promise(r => v.addEventListener('seeked', r, { once: true }));
+      v.play();
+    }
+    else { v.currentTime = opt.seekTo ?? 0.07; v.play(); }
+    s.started = performance.now();
+  }, { once: true });
+  window['v_' + name] = v;
+}
+let last = {};
+setInterval(() => {
+  for (const [k, s] of Object.entries(stats)) {
+    if (s.started) s.perSec.push(s.frames - (last[k] || 0));
+    last[k] = s.frames;
+  }
+  document.getElementById('out').textContent = Object.entries(stats)
+    .map(([k, s]) => `${k.padEnd(12)} frames/s since start: ${s.perSec.join(' ')}`).join('\n');
+}, 1000);
+</script>

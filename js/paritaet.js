@@ -7,7 +7,7 @@
 // This is a straight port of pari360.dir.  Times are Director ticks (1/60 s);
 // the tables say, per track, when the person appears ("in") and leaves ("out").
 
-import { domRow, domClip } from './videoclip.js';
+import { domRow, domClip, seekThenPlay } from './videoclip.js';
 
 const TICK = 1 / 60;
 // eintritt / austritt per track 1..20 (index 0 unused)
@@ -31,12 +31,13 @@ export function paritaetScene(cfg) {
   // ------------------------------------------------------------ clip control
   function start(i, ticks) {
     const c = clips[i];
-    c.v.currentTime = ticks * TICK;
-    c.v.play().catch(e => console.warn('video play refused:', e.name, e.message));
+    if (c.cancel) c.cancel();
+    c.cancel = seekThenPlay(c.v, ticks * TICK);
     c.playing = true;
   }
   function stop(i) {
     const c = clips[i];
+    if (c.cancel) { c.cancel(); c.cancel = null; }
     c.v.pause();
     c.v.currentTime = 0;
     c.playing = false;
