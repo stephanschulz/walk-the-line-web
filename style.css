@@ -107,14 +107,15 @@ html, body {
 }
 #start #status { color: #888; letter-spacing: .08em; }
 
+/* The decoding videos of parität / ritter.  They must count as visible for
+   Safari (WebKit pauses or stops repainting muted videos it thinks are hidden:
+   opacity 0, 1 px, offscreen), so they have a real size and sit in the viewport
+   — but behind the opaque stage canvas, so nobody sees them. */
 #videos {
   position: fixed;
   left: 0;
   top: 0;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
+  z-index: -1;
   pointer-events: none;
 }
-#videos video { width: 1px; height: 1px; }
+#videos video { position: absolute; left: 0; top: 0; width: 200px; height: auto; }
