@@ -1,6 +1,6 @@
 # walk the line — web version
 
-**▶ Open the web app: https://stephanschulz.github.io/walk-the-line-web/**
+**▶ Open the web app: https://stephanschulz.ca/walk-the-line-web/**
 
 Project page: https://stephanschulz.ca/projects/walk-the-line-2002/
 
